@@ -42,6 +42,4 @@ func TestMixer(t *testing.T) {
 		}
 	}
 	m.Stop()
-	
-	
 }

@@ -5,10 +5,27 @@ import "fmt"
 import "code.google.com/p/portaudio-go/portaudio"
 
 type Universe struct {
-	SampleRate, InputChannels, OutputChannels float64
+	SampleRate float64
 	BufferSize int
-	output *Output
-	input *Input
+	Output *Output
+	Input *Input
+}
+
+func NewUniverse(in, out int) *Universe {
+	var u Universe
+	u.BufferSize = 4096
+	u.SampleRate = 44100
+	u.Output = NewOutput(out)
+	u.Input = NewInput(in)
+	return &u
+}
+
+func (u *Universe) Start() {
+	u.Output.Start()
+}
+
+func (u *Universe) Stop() {
+	u.Output.Stop()
 }
 
 type UGen interface {
