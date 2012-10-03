@@ -31,24 +31,25 @@ func NewSin(f, p float32, u *Universe) *Sin {
 func (s *Sin) Start() error {
 	go func() {
 		var samplenum int64
-		select {
-		case f := <- s.freqChan:
-			s.freq = f
-		case p := <- s.phaseChan:
-			s.phase = p
-		default:
-		}
+		for {
+			select {
+			case f := <- s.freqChan:
+				s.freq = f
+			case p := <- s.phaseChan:
+				s.phase = p
+			default:
+			}
 		
-		y := math.Sin(float64(s.freq) * float64(samplenum) / s.universe.SampleRate + float64(s.phase))
-		println("y",y)
-		select {
-		case <- s.quitchan:
-			return
-		case s.outchans[0] <- float32(y):
-			println("sent")
-		}
+			y := math.Sin(float64(s.freq) * float64(samplenum) / s.universe.SampleRate + float64(s.phase))
+			println("y",y)
+			select {
+			case <- s.quitchan:
+				return
+			case s.outchans[0] <- float32(y):
+			}
 
-		samplenum++
+			samplenum++
+		}
 	}()
 	return nil
 }

@@ -13,14 +13,8 @@ func TestSin(t *testing.T) {
 		var y float32
 		t.Log("samplenum test",i)
 		
-/*		select {
-		case */y = <- s.OutputChannels()[0]//:
-/*		default:
-			t.Log("No output waiting, buh?!")
-			t.Fail()
-			panic("ack")
-		}*/
-		if y != float32(math.Sin(1000*float64(i))) {
+		y = <- s.OutputChannels()[0]//:
+		if y != float32(math.Sin(float64(i)/1000)) {
 			t.Log(fmt.Sprintf("bad output from sin, expected %f got %f", float32(math.Sin(1000*float64(i))), y))
 			t.FailNow()
 		}
