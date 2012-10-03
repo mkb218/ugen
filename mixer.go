@@ -31,6 +31,9 @@ func (m *Mixer) Stop() error {
 }
 
 func (m *Mixer) Start() error {
+	for _, u := range m.inputs {
+		u.Start()
+	}
 	go func() {
 		for {
 			select {
