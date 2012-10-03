@@ -15,8 +15,8 @@ func NewUniverse(in, out int) *Universe {
 	var u Universe
 	u.BufferSize = 4096
 	u.SampleRate = 44100
-	u.Output = NewOutput(out)
-	u.Input = NewInput(in)
+	u.Output = NewOutput(out, &u)
+	u.Input = NewInput(in, &u)
 	return &u
 }
 
