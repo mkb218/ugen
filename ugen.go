@@ -56,10 +56,11 @@ type Output struct {
 	stream *portaudio.Stream
 }
 
-func NewOutput(inchan int) *Output {
+func NewOutput(inchan int, u *Universe) *Output {
 	var o Output
 	o.inputs = make([]UGen, inchan)
 	o.resetonces()
+	o.universe = u
 	return &o
 }
 
@@ -111,8 +112,9 @@ func (o *Output) Stop() error {
 }
 
 func init() {
-	var _ UGen = NewOutput(1)
-	var _ UGen = NewInput(1)
+	var u = new (Universe)
+	var _ UGen = NewOutput(1, u)
+	var _ UGen = NewInput(1, u)
 }
 
 type Input struct {
@@ -123,10 +125,14 @@ type Input struct {
 }
 
 
-func NewInput(outchan int) *Input {
+func NewInput(outchan int, u *Universe) *Input {
 	var i Input
-	i.outchans = make([]chan float32, outchan, i.universe.BufferSize)
+	i.outchans = make([]chan float32, outchan)
+	for j := range i.outchans {
+		i.outchans[j] = make(chan float32)
+	}
 	i.resetonces()
+	i.universe = u
 	return &i
 }
 

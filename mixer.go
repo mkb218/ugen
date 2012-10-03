@@ -2,6 +2,7 @@ package ugen
 
 type q struct{}
 
+// A Mixer mixes all channels of all input UGens into a single output channel, with per-ugen gains
 type Mixer struct {
 	UGenBase
 	gains []float32
@@ -56,9 +57,8 @@ func (m *Mixer) Start() error {
 			select {
 			case <- m.quitchan:
 				return
-			default:
+			case m.outchans[0] <- o:
 			}
-			m.outchans[0] <- o
 		}
 	}()
 	return nil
