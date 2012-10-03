@@ -64,6 +64,7 @@ func (m *Mixer) Start() error {
 	return nil
 }
 
+// TODO: use a channel to send gains
 func (m *Mixer) SetGain(i int, g float32) error {
 	if i < 0 || i >= len(m.gains) {
 		return BadInputSet{i, len(m.gains)}

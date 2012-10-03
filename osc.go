@@ -2,6 +2,7 @@ package ugen
 
 import "math"
 
+// TODO: methods to set phase and freq
 type Sin struct {
 	UGenBase
 	freq float32
@@ -41,7 +42,6 @@ func (s *Sin) Start() error {
 			}
 		
 			y := math.Sin(float64(s.freq) * float64(samplenum) / s.universe.SampleRate + float64(s.phase))
-			println("y",y)
 			select {
 			case <- s.quitchan:
 				return
