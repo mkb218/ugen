@@ -24,7 +24,7 @@ func NewSin(f, p float32, u *Universe) *Sin {
 	s.phaseChan = make(chan float32, 1)
 	s.quitchan = make(chan q)
 	s.universe = u
-	s.outchans = append(s.outchans, make(chan float32))
+	s.outchans = append(s.outchans, make(chan float32, 1))
 	return &s
 }
 
@@ -45,7 +45,7 @@ func (s *Sin) Start() error {
 		case <- s.quitchan:
 			return
 		case s.outchans[0] <- float32(y):
-			println("sent fucko")
+			println("sent")
 		}
 
 		samplenum++
