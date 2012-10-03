@@ -109,6 +109,7 @@ func (o *Output) ProcessAudio(_, out [][]float32) {
 		wg.Add(1)
 		go func(i int, b []float32) {
 			for j := range b {
+				fmt.Println(i)
 				b[j] = <- o.inputs[i].OutputChannels()[i]
 			}
 			wg.Done()

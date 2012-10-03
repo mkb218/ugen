@@ -5,12 +5,12 @@ import "github.com/mkb218/ugen"
 
 func main() {
 	u := ugen.NewUniverse(2, 2)
-	s0 := ugen.NewSin(1000, 0)
-	s1 := ugen.NewSin(1004, 0)
-	s2 := ugen.NewSin(1008, 0)
-	s3 := ugen.NewSin(1016, 0)
-	ml := NewMixer(2)
-	mr := NewMixer(2)
+	s0 := ugen.NewSin(1000, 0, u)
+	s1 := ugen.NewSin(1004, 0, u)
+	s2 := ugen.NewSin(1008, 0, u)
+	s3 := ugen.NewSin(1016, 0, u)
+	ml := ugen.NewMixer(2)
+	mr := ugen.NewMixer(2)
 	u.Output.SetInput(ml, 0)
 	u.Output.SetInput(mr, 1)
 	ml.SetInput(s0, 0)
