@@ -4,7 +4,7 @@ The intent of this package is to provide a SuperCollider-like programming enviro
 
 INSTALL:
 
-go get code.google.com/p/portaudio-go/portaudio
+install portaudio development packages from your preferred package manager
 go get github.com/mkb218/ugen
 
 DOCS:
