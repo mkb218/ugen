@@ -86,6 +86,7 @@ var recyclers struct {
 func init() {
 	recyclers.m = make(map[int]chan []float32)
 	logger = log.New(os.Stderr, "ugen: ", log.LstdFlags|log.Lshortfile)
+	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
 func prepareoutchans(u *UGenBase, c int) {

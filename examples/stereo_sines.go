@@ -37,7 +37,7 @@ func main() {
 		}
 	}()
 	fmt.Println("sleeping!")
-	time.Sleep(time.Second/2)
+	time.Sleep(15*time.Second)
 	fmt.Println("stopping!")
 	o.Stop()
 }
