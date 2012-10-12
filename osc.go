@@ -5,47 +5,58 @@ import "math"
 // TODO: methods to set phase and freq
 type Sin struct {
 	UGenBase
-	freq float32
-	phase float32
-	freqChan chan float32
-	phaseChan chan float32
-	universe *Universe // needs samplerate
-	quitchan chan q
+	freq      float32
+	phase     float32
+	quitchan  chan q
 }
 
 func init() {
 	var _ UGen = &Sin{}
 }
 
-func NewSin(f, p float32, u *Universe) *Sin {
+func NewSin(f, p float32) *Sin {
 	var s Sin
 	s.freq = f
 	s.phase = p
-	s.freqChan = make(chan float32, 1)
-	s.phaseChan = make(chan float32, 1)
+	s.paramchannel = make(chan ParamValue)
 	s.quitchan = make(chan q)
-	s.universe = u
-	s.outchans = append(s.outchans, make(chan float32, 1))
+	prepareoutchans(&(s.UGenBase), 1)
 	return &s
 }
 
-func (s *Sin) Start() error {
+func (s *Sin) GetParams() []ParamDesc {
+	return []ParamDesc{ParamDesc{Name:"freq", Size:1}, ParamDesc{Name:"phase",Size:1}}
+}
+
+func (s *Sin) Start(op OutputParams) error {
 	go func() {
 		var samplenum int64
 		for {
-			select {
-			case f := <- s.freqChan:
-				s.freq = f
-			case p := <- s.phaseChan:
-				s.phase = p
-			default:
+			PARAM: for {
+				select {
+				case p := <-s.paramchannel:
+					switch p.Index {
+					case 0:
+						s.freq = p.Value
+					case 1:
+						s.phase = p.Value
+					default:
+						logger.Printf("Sin: Bad Index %d in ParamValue", p.Index)
+					}
+				default:
+					break PARAM
+				}
 			}
-		
-			y := math.Sin(float64(s.freq) * float64(samplenum) / s.universe.SampleRate + float64(s.phase))
+
+			b := GetNewBuf(op)
+			for x := range b {
+				b[x] = float32(math.Sin(2*math.Pi*float64(s.freq)*float64(samplenum+int64(x))/op.SampleRate + float64(s.phase)))
+			}
+			samplenum += int64(op.BufferSize)
 			select {
-			case <- s.quitchan:
+			case <-s.quitchan:
 				return
-			case s.outchans[0] <- float32(y):
+			case s.outchans[0] <- b:
 			}
 
 			samplenum++

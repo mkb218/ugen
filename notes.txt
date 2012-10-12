@@ -1,0 +1,21 @@
+all mutable params have to come in on channels!
+
+remove universe, replace with ugen level params sent by sink and replicated upstream
+- samplerate
+- buffer size
+- input and output channels
+
+every ugen should have a name and an id number
+inter-ugen channels are unbuffered
+
+Needs null sink and null source ugens
+
+smarter to pass around slices as buffers, buffers can get recycled. 
+
+Serialize node graph and bringing up again
+
+create pluggable portaudio and sdl sinks
+
+mixer should have a configurable number of channels
+
+i wonder if it makes sense to preallocate one buffer per ugen output channel in the recycler

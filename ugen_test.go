@@ -11,10 +11,10 @@ func TestSin(t *testing.T) {
 	s.Start()
 	for i := 0; i < 1000; i++ {
 		var y float32
-		
-		y = <- s.OutputChannels()[0]
+
+		y = <-s.OutputChannels()[0]
 		if y != float32(math.Sin(float64(i)/1000)) {
-			t.Log(fmt.Sprintf("bad output from sin, expected %f got %f", float32(math.Sin(1000*float64(i))), y))
+			t.Log(fmt.Sprintf("bad output from sin, expected %f got %f", float32(math.Sin(2*math.Pi*1000*float64(i))), y))
 			t.FailNow()
 		}
 	}
@@ -34,9 +34,9 @@ func TestMixer(t *testing.T) {
 	m.Start()
 	for i := 0; i < 1000; i++ {
 		var y float32
-		
-		y = <- m.OutputChannels()[0]
-		if math.Abs(float64(y - float32(0.5*math.Sin(float64(i)/1000)))) > 0.00001 {
+
+		y = <-m.OutputChannels()[0]
+		if math.Abs(float64(y-float32(0.5*math.Sin(2*math.Pi*float64(i)/1000)))) > 0.00001 {
 			t.Log(fmt.Sprintf("bad output from sin, expected %f got %f", float32(math.Sin(1000*float64(i))), y))
 			t.FailNow()
 		}
