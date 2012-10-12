@@ -32,14 +32,12 @@ func NewMixer(inchan, buswidth int) *Mixer {
 }
 
 func (m *Mixer) Stop() error {
-	cancel := panicAfter(1)
 	logger.Println("MIXER STOP")
 	m.quitchan <- q{}
 	logger.Println("MIXER SENT QUIT")
 	for _, u := range m.inputs {
 		u.Stop()
 	}
-	cancel <- q{}
 	return nil
 }
 
