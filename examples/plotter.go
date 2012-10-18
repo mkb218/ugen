@@ -1,4 +1,4 @@
-/*package main
+package main
 // plotter.go
 // Joe Wass 2012
 // joe@afandian.com
@@ -78,4 +78,3 @@ func main() {
 
 	png.Encode(imageFile, outimage)
 }
-*/
