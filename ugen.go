@@ -5,6 +5,8 @@ import "fmt"
 import "log"
 import "os"
 import "runtime"
+import "sync/atomic"
+//import "reflect"
 
 var logger *log.Logger
 
@@ -33,6 +35,13 @@ type UGen interface {
 	OutputChannels() []chan []float32
 	Start(OutputParams) error
 	Stop() error
+}
+
+var RecycleStats struct {
+	Alloced uint64
+	Lost uint64
+	Issued uint64
+	Recycled uint64
 }
 
 type UGenBase struct {
@@ -86,7 +95,7 @@ var recyclers struct {
 func init() {
 	recyclers.m = make(map[int]chan []float32)
 	logger = log.New(os.Stderr, "ugen: ", log.LstdFlags|log.Lshortfile)
-	runtime.GOMAXPROCS(runtime.NumCPU())
+//	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
 func prepareoutchans(u *UGenBase, c int) {
@@ -95,9 +104,6 @@ func prepareoutchans(u *UGenBase, c int) {
 		u.outchans[i] = make(chan []float32)
 	}
 }
-	
-	
-	
 
 func MakeRecycleChannel(op OutputParams) {
 	recyclers.Lock() // possible that some other writer got lock between runlock and here
@@ -117,12 +123,16 @@ func GetNewBuf(op OutputParams) (b []float32) {
 		case b = <-c:
 			// logger.Println("recycled a buf!")
 		default:
-			logger.Println("had to allocate a new buf :(")
+			logger.Println("nothing in recycler")
+			atomic.AddUint64(&RecycleStats.Alloced, 1)
 			b = make([]float32, op.BufferSize)
 		}
 	} else {
+		logger.Println("no recycler")
+		atomic.AddUint64(&RecycleStats.Alloced, 1)
 		b = make([]float32, op.BufferSize)
 	}
+	atomic.AddUint64(&RecycleStats.Issued, 1)
 	return
 }
 
@@ -133,8 +143,10 @@ func RecycleBuf(b []float32, op OutputParams) {
 		if _, ok := recyclers.m[op.BufferSize]; ok {
 			select {
 			case recyclers.m[op.BufferSize] <- b:
-				// logger.Println("sending buffer to recycler")
+				logger.Println("sending buffer to recycler")
+				atomic.AddUint64(&RecycleStats.Recycled, 1)
 			default:
+				atomic.AddUint64(&RecycleStats.Lost, 1)
 				logger.Println("recycling channel full", len(recyclers.m[op.BufferSize]))
 			}
 			recyclers.RUnlock()
@@ -142,6 +154,8 @@ func RecycleBuf(b []float32, op OutputParams) {
 			recyclers.RUnlock()
 			MakeRecycleChannel(op)
 		}
+	} else {
+		atomic.AddUint64(&RecycleStats.Lost, 1)
 	}
 }
 
@@ -151,7 +165,12 @@ func LogRecycleStats() {
 	for k, v := range recyclers.m {
 		logger.Println("RecycleStats", k, len(v))
 	}
+	logger.Println("RecycleStats", RecycleStats)
+//	var m runtime.MemStats
+//	runtime.ReadMemStats(&m)
+//	logger.Println("RecycleStats GC", m.GC)
 }
+
 
 func LogStackTrace() {
 	var b [4096]byte

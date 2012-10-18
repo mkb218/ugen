@@ -44,39 +44,39 @@ func (s *Spreader) Start(op OutputParams) error {
 			// fetch all input buffers
 			bufs := make([][]float32, len(s.inputs[0].OutputChannels()))
 			for i := range bufs {
+				bufs[i] = GetNewBuf(op)
 				select {
 				case <-s.quitchan:
 					return
-				default:
-					bufs[i] = <- s.inputs[0].OutputChannels()[i]
+				case bufs[i] = <- s.inputs[0].OutputChannels()[i]:
 				}
 			}
-			
-			first := true
-			var inum int
-			for _, oc := range s.outchans {
-				if first {
-					select {
-					case <-s.quitchan:
-						return
-					case oc <- bufs[inum]:
-					}
-				} else {
-					nb := GetNewBuf(op)
-					copy(nb, bufs[inum])
-					select {
-					case <-s.quitchan:
-						return
-					case oc <- nb:
-					}
-				}
 
-				inum++
-				if inum == len(s.inputs[0].OutputChannels()) {
-					inum = 0
-					first = false
+			func() {
+				first := true
+				var inum int
+				for _, oc := range s.outchans {
+					if first {
+						defer func(i int) {
+							oc <- bufs[i]
+						}(inum)
+					} else {
+						nb := GetNewBuf(op)
+						copy(nb, bufs[inum])
+						select {
+						case <-s.quitchan:
+							return
+						case oc <- nb:
+						}
+					}
+
+					inum++
+					if inum == len(s.inputs[0].OutputChannels()) {
+						first = false
+						inum = 0
+					}
 				}
-			}
+			}()
 		}
 	}()
 	return nil

@@ -10,7 +10,7 @@ import (
 	"image/png"
 	"log"
 	"os"
-	"sndfile"
+	"github.com/mkb218/gosndfile/sndfile"
 )
 
 // Number of seconds worth of buffer to allocate.
