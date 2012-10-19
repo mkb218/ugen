@@ -2,6 +2,7 @@ package ugen
 
 import "github.com/mkb218/gosndfile/sndfile"
 import "sync"
+// import "time"
 
 type SndfileOut struct {
 	UGenBase
@@ -29,6 +30,10 @@ func init() {
 	var _ UGen = new(SndfileOut)
 }
 
+func (s *SndfileOut) GetParams() []ParamDesc {
+	return []ParamDesc{}
+}
+
 func (s *SndfileOut) Start(op OutputParams) (err error) {
 	defer func() {
 		if err != nil {
@@ -39,6 +44,7 @@ func (s *SndfileOut) Start(op OutputParams) (err error) {
 	}()
 
 	s.start.Do(func() {
+		MakeRecycleChannel(op)
 		s.fi.Samplerate = int32(op.SampleRate)
 		m := sndfile.Write
 		if s.appendMode {
@@ -98,26 +104,33 @@ func (s *SndfileOut) Start(op OutputParams) (err error) {
 				}
 				
 				channum := 0
+				var wg sync.WaitGroup
 				for _, u := range s.inputs {
 					for _, c := range u.OutputChannels() {
-						select {
-						case ibuf := <- c:
-							for snum, sval := range ibuf {
-								// if sval != 0 {
-								// 	logger.Println(obuf[snum*ochans+channum], sval)
-								// }
-								obuf[snum*ochans+channum] = sval
-								// if sval != 0 {
-								// 	logger.Println(obuf[snum*ochans+channum], sval)
-								// }
+						// logger.Println(c)
+						wg.Add(1)
+						go func(channum int, c chan []float32) {
+							select {
+							case ibuf := <- c:
+								for snum, sval := range ibuf {
+									// if sval != 0 {
+									// 	logger.Println(obuf[snum*ochans+channum], sval)
+									// }
+									obuf[snum*ochans+channum] = sval
+									// if sval != 0 {
+									// 	logger.Println(obuf[snum*ochans+channum], sval)
+									// }
+								}
+								go func() { RecycleBuf(ibuf, op) }()
+							case <- s.quitchan:
+								return
 							}
-							go RecycleBuf(ibuf, op)
-						case <- s.quitchan:
-							return
-						}
+							wg.Done()
+						}(channum, c)
 						channum++
 					}
 				}
+				wg.Wait()
 			
 				var n int64
 				n, err = s.file.WriteItems(obuf)

@@ -23,6 +23,14 @@ func NewPortAudioOutput(channels int) *PortAudioOutput {
 	return &o
 }
 
+func (o *PortAudioOutput) GetParams() []ParamDesc {
+	return []ParamDesc{}
+}
+
+func (i *PortAudioInput) GetParams() []ParamDesc {
+	return []ParamDesc{}
+}
+
 func (o *PortAudioOutput) Start(op OutputParams) error {
 	var err error
 	o.start.Do(func () {
@@ -62,7 +70,7 @@ func (o *PortAudioOutput) ProcessAudio(_, out [][]float32) {
 			ib := <- o.inputs[0].OutputChannels()[i]
 //			logger.Println("pa test", ib[123])
 			copy(b, ib)
-			go RecycleBuf(ib, o.op)
+			go func() { RecycleBuf(ib, o.op) }()
 			wg.Done()
 		}(i, b)
 	}

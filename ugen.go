@@ -30,18 +30,24 @@ type OutputParams struct {
 type UGen interface {
 	Inputs() []UGen
 	ParamChannel() chan<- ParamValue
-	GetParamNames() []string
+	GetParams() []ParamDesc
 	SetInput(int, UGen) error
 	OutputChannels() []chan []float32
 	Start(OutputParams) error
 	Stop() error
 }
 
-var RecycleStats struct {
+var RecycleStats rs
+
+type rs struct {
 	Alloced uint64
 	Lost uint64
 	Issued uint64
 	Recycled uint64
+}
+
+func (r rs) String() string {
+	return fmt.Sprintf("a: %d l: %d i: %d r %d", r.Alloced, r.Lost, r.Issued, r.Recycled)
 }
 
 type UGenBase struct {
@@ -49,10 +55,10 @@ type UGenBase struct {
 	paramchannel chan ParamValue
 	outchans     []chan []float32
 }
-
-func (u *UGenBase) GetParamNames() []string {
-	return []string{}
-}
+// 
+// func (u *UGenBase) GetParams() []ParamDesc {
+// 	return []ParamDesc{}
+// }
 
 func (u *UGenBase) GetChannelIndexForParam(_ string) (int, int) {
 	return 0, 0
@@ -83,6 +89,7 @@ func (u *UGenBase) SetInput(i int, g UGen) error {
 		return BadInputSet{i, len(u.inputs)}
 	}
 
+	logger.Println(i)
 	u.inputs[i] = g
 	return nil
 }
@@ -118,17 +125,25 @@ func MakeRecycleChannel(op OutputParams) {
 func GetNewBuf(op OutputParams) (b []float32) {
 	recyclers.RLock()
 	defer recyclers.RUnlock()
+	pc, filename, line, ok := runtime.Caller(1)
+	var logstr string
+	if ok {
+		f := runtime.FuncForPC(pc)
+		logstr = fmt.Sprintf("%s:%d:%s", filename, line, f.Name())
+	} else {
+		logstr = "???"
+	}
 	if c, ok := recyclers.m[op.BufferSize]; ok {
 		select {
 		case b = <-c:
-			// logger.Println("recycled a buf!")
+			logger.Println("recycled a buf for ",logstr)
 		default:
-			logger.Println("nothing in recycler")
+			logger.Println("alloced new for", logstr)
 			atomic.AddUint64(&RecycleStats.Alloced, 1)
 			b = make([]float32, op.BufferSize)
 		}
 	} else {
-		logger.Println("no recycler")
+		logger.Println("alloced new for", logstr)
 		atomic.AddUint64(&RecycleStats.Alloced, 1)
 		b = make([]float32, op.BufferSize)
 	}
@@ -138,23 +153,34 @@ func GetNewBuf(op OutputParams) (b []float32) {
 
 // RecycleBuf will put a used buffer into the recycling queue for the given BufferSize. It can block, so you should always call it from its own goroutine.
 func RecycleBuf(b []float32, op OutputParams) {
+	pc, filename, line, ok := runtime.Caller(1)
+	var logstr string
+	if ok {
+		f := runtime.FuncForPC(pc)
+		logstr = fmt.Sprintf("%s:%d:%s", filename, line, f.Name())
+	} else {
+		logstr = "???"
+	}
 	if len(b) == op.BufferSize && cap(b) == op.BufferSize {
 		recyclers.RLock()
-		if _, ok := recyclers.m[op.BufferSize]; ok {
-			select {
-			case recyclers.m[op.BufferSize] <- b:
-				logger.Println("sending buffer to recycler")
-				atomic.AddUint64(&RecycleStats.Recycled, 1)
-			default:
-				atomic.AddUint64(&RecycleStats.Lost, 1)
-				logger.Println("recycling channel full", len(recyclers.m[op.BufferSize]))
-			}
-			recyclers.RUnlock()
-		} else {
+		var ok bool
+		if _, ok = recyclers.m[op.BufferSize]; !ok {
 			recyclers.RUnlock()
 			MakeRecycleChannel(op)
+			recyclers.RLock()
+		} 
+		select {
+		case recyclers.m[op.BufferSize] <- b:
+			logger.Println("sending buffer to recycler for",logstr)
+			atomic.AddUint64(&RecycleStats.Recycled, 1)
+		default:
+			logger.Println("dropping buffer from",logstr)
+			atomic.AddUint64(&RecycleStats.Lost, 1)
+			logger.Println("recycling channel full", len(recyclers.m[op.BufferSize]))
 		}
+		recyclers.RUnlock()
 	} else {
+		logger.Println("no recycler for buffer from",logstr)
 		atomic.AddUint64(&RecycleStats.Lost, 1)
 	}
 }
@@ -174,6 +200,6 @@ func LogRecycleStats() {
 
 func LogStackTrace() {
 	var b [4096]byte
-	runtime.Stack(b[:], true)
-	log.Print(string(b[:]))
+	c := runtime.Stack(b[:], true)
+	log.Print(string(b[:c]))
 }

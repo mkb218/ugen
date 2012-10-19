@@ -1,5 +1,7 @@
 package ugen
 
+import "sync"
+
 type q struct{}
 
 // A Mixer mixes all channels of all input UGens into a single set of output channels, with per-ugen gains. A UGen which does not output a given channel will put nothing on that channel.
@@ -41,11 +43,18 @@ func (m *Mixer) Stop() error {
 	return nil
 }
 
+type bufchanpair struct {
+	a []float32
+	c int
+}
+
 func (m *Mixer) Start(op OutputParams) error {
 	for _, u := range m.inputs {
 		u.Start(op)
 	}
 	go func() {
+		obs := make([]bufchanpair,0)
+		ocs := make([][]float32,len(m.outchans))
 		for {
 			select {
 			case <-m.quitchan:
@@ -68,36 +77,42 @@ func (m *Mixer) Start(op OutputParams) error {
 				}
 			}
 
-			for cnum, oc := range m.outchans {
-				var ob []float32
+			var wg sync.WaitGroup
+			for cnum := range m.outchans {
 				for i, iu := range m.inputs {
-					if len(iu.OutputChannels())-1 < cnum {
-						continue
-					}
-					select {
-					case <-m.quitchan:
-						return
-					case tob := <-iu.OutputChannels()[cnum]:
-						if ob == nil {
-							ob = tob
-							for j := range ob {
-								ob[j] *= m.gains[i]
-							}
-						} else {
-							for j := range ob {
-								ob[j] += tob[j] * m.gains[i]
-							}
-							go RecycleBuf(tob, op)
+					wg.Add(1)
+					go func(iu UGen, i, cnum int) {
+						if len(iu.OutputChannels())-1 < cnum {
+							return
 						}
+						ob := <-iu.OutputChannels()[cnum]
+						
+						for j := range ob {
+							ob[j] *= m.gains[i]
+						}
+						obs = append(obs, bufchanpair{a:ob,c:cnum})
+						wg.Done()
+					}(iu, i, cnum)
+				}
+			}
+			wg.Wait()
+			for _, bpc := range obs {
+				if ocs[bpc.c] == nil {
+					ocs[bpc.c] = bpc.a
+				} else {
+					for i := range ocs[bpc.c] {
+						ocs[bpc.c][i] += bpc.a[i]
 					}
+					go func() { RecycleBuf(bpc.a,op) }()
 				}
-				if ob == nil {
-					ob = GetNewBuf(op)
-				}
+			}
+			
+			for i, c := range m.outchans {
 				select {
-				case <-m.quitchan:
+				case <- m.quitchan:
 					return
-				case oc <- ob:
+				case c <- ocs[i]: 
+					ocs[i] = nil
 				}
 			}
 		}

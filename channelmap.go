@@ -35,6 +35,10 @@ func (s *Spreader) Stop() error {
 	return nil
 }
 
+func (s *Spreader) GetParams() []ParamDesc {
+	return []ParamDesc{}
+}
+
 func (s *Spreader) Start(op OutputParams) error {
 	for _, u := range s.inputs {
 		u.Start(op)
@@ -56,17 +60,23 @@ func (s *Spreader) Start(op OutputParams) error {
 				first := true
 				var inum int
 				for _, oc := range s.outchans {
+					// logger.Println("i", i, oc)
 					if first {
-						defer func(i int) {
+						// logger.Println("zing")
+						defer func(i int, oc chan []float32) {
+//							logger.Println("send first")
 							oc <- bufs[i]
-						}(inum)
+						}(inum, oc)
 					} else {
+						// logger.Println("getting newbuf")
 						nb := GetNewBuf(op)
+						// logger.Println("got newbuf")
 						copy(nb, bufs[inum])
 						select {
 						case <-s.quitchan:
 							return
 						case oc <- nb:
+//							logger.Println("send n")
 						}
 					}
 
