@@ -88,7 +88,7 @@ func (a *AudioParam) Start(op OutputParams) (err error) {
 				}
 				select {
 				case a.dest <- ParamValue{Index:a.param, Value:inbuf[0]}:
-					go RecycleBuf(inbuf, op)
+					go func() { RecycleBuf(inbuf, op) }()
 				case <- a.quitchan:
 					return
 				}
