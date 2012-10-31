@@ -60,11 +60,11 @@ func (s *Spreader) Start(op OutputParams) error {
 				first := true
 				var inum int
 				for _, oc := range s.outchans {
-					// logger.Println("i", i, oc)
+					// logger.Println("i", inum, oc)
 					if first {
 						// logger.Println("zing")
 						defer func(i int, oc chan []float32) {
-//							logger.Println("send first")
+							// logger.Println("send first")
 							oc <- bufs[i]
 						}(inum, oc)
 					} else {
@@ -76,7 +76,7 @@ func (s *Spreader) Start(op OutputParams) error {
 						case <-s.quitchan:
 							return
 						case oc <- nb:
-//							logger.Println("send n")
+							// logger.Println("send n",inum)
 						}
 					}
 
