@@ -73,16 +73,61 @@ func testMixerSub(t *testing.T, inputs []UGen, buswidth int, id string) {
 	}
 	wg.Wait()
 	t.Log("got one output buffer")
-	mx.Stop()
 	
 	for i, b := range ob {
 		for j, v := range b {
 			if math.Abs(float64(float32(j*len(inputs)) * 0.1 - v)) > 0.001 {
-				t.Logf("got unexpected value %v instead of %v for channel %v sample %v", v, float32(j) * 0.1, i, j)
+				t.Logf("got unexpected value %v instead of %v for channel %v sample %v", v, float32(j*len(inputs)) * 0.1, i, j)
 				t.Fail()
 			}
 		}
 	}
+	
+	
+	// double all gains
+	for i := range inputs {
+		mx.SetInput(i, inputs[i])
+		mx.SetGain(i, 0.2)
+	}
+	for i := 0; i < buswidth; i++ {
+		wg.Add(1)
+		go func(i int) {
+			ob[i] = <- mx.OutputChannels()[i]
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	t.Log("got one output buffer")
+
+	for i, b := range ob {
+		for j, v := range b {
+			if math.Abs(float64(float32(j*len(inputs)) * 0.1 - v)) > 0.001 {
+				t.Logf("got unexpected value %v instead of %v for channel %v sample %v", v, float32(j*len(inputs)) * 0.2, i, j)
+				t.Fail()
+			}
+		}
+	}
+
+	for i := 0; i < buswidth; i++ {
+		wg.Add(1)
+		go func(i int) {
+			ob[i] = <- mx.OutputChannels()[i]
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	t.Log("got one output buffer")
+
+	for i, b := range ob {
+		for j, v := range b {
+			if math.Abs(float64(float32(j*len(inputs)) * 0.2 - v)) > 0.001 {
+				t.Logf("got unexpected value %v instead of %v for channel %v sample %v", v, float32(j*len(inputs)) * 0.2, i, j)
+				t.Fail()
+			}
+		}
+	}
+	mx.Stop()
+	
 	fmt.Println("returning from",id)
 }
 	

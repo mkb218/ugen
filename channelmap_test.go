@@ -23,6 +23,7 @@ func (b *BufMaker) Start(op OutputParams) error {
 		for {
 			buf := GetNewBuf(op)
 			for i := range buf {
+				logger.Println(i)
 				buf[i] = float32(i)
 			}
 			select {
@@ -43,7 +44,7 @@ func (b *BufMaker) Stop() error {
 	return nil
 }
 
-func testSpreader(t *testing.T) {
+func TestSpreader(t *testing.T) {
 	var b UGen = &BufMaker{T: t}
 	spreader := NewSpreader(2)
 	spreader.SetInput(0, b)

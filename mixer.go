@@ -1,7 +1,6 @@
 package ugen
 
 import "sync"
-import "time"
 
 type q struct{}
 
@@ -120,12 +119,16 @@ func (m *Mixer) Start(op OutputParams) error {
 				select {
 				case <- m.quitchan:
 					return
-				case c <- ocs[i]: 
-					ocs[i] = nil
-				case <- time.After(op.DropBufTimeout) :
-					logger.Printf("mixer %p stuck 50ms sending on channel %d %p",m, i, c)
+				default:
+					wg.Add(1)
+				 	go func() {
+						c <- ocs[i]
+						ocs[i] = nil
+						wg.Done()
+					}()
 				}
 			}
+			wg.Wait()
 			
 		}
 	}()

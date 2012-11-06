@@ -6,7 +6,6 @@ import "log"
 import "os"
 import "runtime"
 import "sync/atomic"
-import "time"
 
 var logger *log.Logger
 
@@ -25,7 +24,6 @@ type ParamValue struct {
 type OutputParams struct {
 	SampleRate float64
 	BufferSize int
-	DropBufTimeout time.Duration
 }
 
 type UGen interface {
