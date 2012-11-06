@@ -1,6 +1,7 @@
 package ugen
 
 import "sync"
+import "time"
 
 type q struct{}
 
@@ -44,6 +45,7 @@ func (m *Mixer) Stop() error {
 }
 
 type bufchanpair struct {
+	set bool
 	a []float32
 	c int
 }
@@ -53,7 +55,8 @@ func (m *Mixer) Start(op OutputParams) error {
 		u.Start(op)
 	}
 	go func() {
-		obs := make([]bufchanpair,0)
+		logger.Println("mixer",len(m.inputs),"inputs",len(m.outchans),"bus width")
+		obs := make([]bufchanpair,len(m.inputs)*len(m.outchans))
 		ocs := make([][]float32,len(m.outchans))
 		for {
 			select {
@@ -62,7 +65,7 @@ func (m *Mixer) Start(op OutputParams) error {
 			default:
 			}
 
-			// grab all new gain settings
+		// grab all new gain settings
 		GAIN:
 			for {
 				select {
@@ -82,7 +85,10 @@ func (m *Mixer) Start(op OutputParams) error {
 				for i, iu := range m.inputs {
 					wg.Add(1)
 					go func(iu UGen, i, cnum int) {
+						defer wg.Done()
+
 						if len(iu.OutputChannels())-1 < cnum {
+							logger.Println("upstream has no channel",cnum,"input",i)
 							return
 						}
 						ob := <-iu.OutputChannels()[cnum]
@@ -90,20 +96,23 @@ func (m *Mixer) Start(op OutputParams) error {
 						for j := range ob {
 							ob[j] *= m.gains[i]
 						}
-						obs = append(obs, bufchanpair{a:ob,c:cnum})
-						wg.Done()
+						obs[cnum*len(m.inputs)+i] = bufchanpair{set:true,a:ob,c:cnum}
 					}(iu, i, cnum)
 				}
 			}
 			wg.Wait()
-			for _, bpc := range obs {
-				if ocs[bpc.c] == nil {
-					ocs[bpc.c] = bpc.a
-				} else {
-					for i := range ocs[bpc.c] {
-						ocs[bpc.c][i] += bpc.a[i]
+			
+			for dex, bpc := range obs {
+				if obs[dex].set {
+					if ocs[bpc.c] == nil {
+						ocs[bpc.c] = bpc.a
+					} else {
+						for i := range ocs[bpc.c] {
+							ocs[bpc.c][i] += bpc.a[i]
+						}
+						go func() { RecycleBuf(bpc.a,op) }()
 					}
-					go func() { RecycleBuf(bpc.a,op) }()
+					obs[dex].set = false
 				}
 			}
 			
@@ -113,8 +122,11 @@ func (m *Mixer) Start(op OutputParams) error {
 					return
 				case c <- ocs[i]: 
 					ocs[i] = nil
+				case <- time.After(op.DropBufTimeout) :
+					logger.Printf("mixer %p stuck 50ms sending on channel %d %p",m, i, c)
 				}
 			}
+			
 		}
 	}()
 	return nil

@@ -6,7 +6,7 @@ import "log"
 import "os"
 import "runtime"
 import "sync/atomic"
-//import "reflect"
+import "time"
 
 var logger *log.Logger
 
@@ -25,6 +25,7 @@ type ParamValue struct {
 type OutputParams struct {
 	SampleRate float64
 	BufferSize int
+	DropBufTimeout time.Duration
 }
 
 type UGen interface {
@@ -89,7 +90,6 @@ func (u *UGenBase) SetInput(i int, g UGen) error {
 		return BadInputSet{i, len(u.inputs)}
 	}
 
-	logger.Println(i)
 	u.inputs[i] = g
 	return nil
 }
@@ -101,6 +101,11 @@ var recyclers struct {
 
 func init() {
 	recyclers.m = make(map[int]chan []float32)
+	dn, err := os.Create(os.DevNull)
+	if err != nil {
+		panic(err)
+	}
+	logger = log.New(dn, "ugen: ", log.LstdFlags|log.Lshortfile)
 	logger = log.New(os.Stderr, "ugen: ", log.LstdFlags|log.Lshortfile)
 //	runtime.GOMAXPROCS(runtime.NumCPU())
 }

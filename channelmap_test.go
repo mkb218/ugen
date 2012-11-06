@@ -17,20 +17,20 @@ func (*BufMaker) GetParams() []ParamDesc {
 func (b *BufMaker) Start(op OutputParams) error {
 	b.quitchan = make(chan q)
 	b.outchans = []chan []float32{make(chan []float32)}
-	buf := make([]float32, op.BufferSize)
-	for i := range buf {
-		buf[i] = float32(i)
-	}
 	go func() {
 		i := 0
-		b.Log("starting")
+		// b.Log("starting")
 		for {
+			buf := GetNewBuf(op)
+			for i := range buf {
+				buf[i] = float32(i)
+			}
 			select {
 			case <-b.quitchan:
 				b.Log("stopping")
 				return
 			case b.outchans[0] <- buf:
-				b.Log("sent a buf", i)
+				// b.Log("sent a buf", i)
 				i++
 			}
 		}
@@ -43,7 +43,7 @@ func (b *BufMaker) Stop() error {
 	return nil
 }
 
-func TestSpreader(t *testing.T) {
+func testSpreader(t *testing.T) {
 	var b UGen = &BufMaker{T: t}
 	spreader := NewSpreader(2)
 	spreader.SetInput(0, b)
