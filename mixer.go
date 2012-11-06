@@ -121,11 +121,11 @@ func (m *Mixer) Start(op OutputParams) error {
 					return
 				default:
 					wg.Add(1)
-				 	go func() {
+				 	go func(c chan []float32) {
 						c <- ocs[i]
 						ocs[i] = nil
 						wg.Done()
-					}()
+					}(c)
 				}
 			}
 			wg.Wait()

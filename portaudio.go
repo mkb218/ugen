@@ -39,18 +39,22 @@ func (o *PortAudioOutput) Start(op OutputParams) error {
 		if o.stream == nil {
 			o.stream, err = portaudio.OpenDefaultStream(0, o.channels, op.SampleRate, op.BufferSize, o)
 			if err != nil {
+				logger.Println("portaudio output creation failed", err)
 				return
 			}
 		}
 		err = o.stream.Start()
 		if err != nil {
+			logger.Println("portaudio output start failed", err)
 			return
 		}
 		err = o.inputs[0].Start(op)
 		if err != nil {
+			logger.Println("input 0 start failed",err)
 			o.stream.Stop()
 			return
 		}
+		logger.Printf("portaudio Start %T %p", o.inputs[0], o.inputs[0])
 		o.stop = new(sync.Once)
 	})
 	return err

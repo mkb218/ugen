@@ -128,25 +128,25 @@ func MakeRecycleChannel(op OutputParams) {
 func GetNewBuf(op OutputParams) (b []float32) {
 	recyclers.RLock()
 	defer recyclers.RUnlock()
-	pc, filename, line, ok := runtime.Caller(1)
-	var logstr string
-	if ok {
-		f := runtime.FuncForPC(pc)
-		logstr = fmt.Sprintf("%s:%d:%s", filename, line, f.Name())
-	} else {
-		logstr = "???"
-	}
+	// pc, filename, line, ok := runtime.Caller(1)
+	// var logstr string
+	// if ok {
+		// f := runtime.FuncForPC(pc)
+		// logstr = fmt.Sprintf("%s:%d:%s", filename, line, f.Name())
+	// } else {
+		// logstr = "???"
+	// }
 	if c, ok := recyclers.m[op.BufferSize]; ok {
 		select {
 		case b = <-c:
-			logger.Println("recycled a buf for ",logstr)
+			// logger.Println("recycled a buf for ",logstr)
 		default:
-			logger.Println("alloced new for", logstr)
+			// logger.Println("alloced new for", logstr)
 			atomic.AddUint64(&RecycleStats.Alloced, 1)
 			b = make([]float32, op.BufferSize)
 		}
 	} else {
-		logger.Println("alloced new for", logstr)
+		// logger.Println("alloced new for", logstr)
 		atomic.AddUint64(&RecycleStats.Alloced, 1)
 		b = make([]float32, op.BufferSize)
 	}
@@ -156,14 +156,14 @@ func GetNewBuf(op OutputParams) (b []float32) {
 
 // RecycleBuf will put a used buffer into the recycling queue for the given BufferSize. It can block, so you should always call it from its own goroutine.
 func RecycleBuf(b []float32, op OutputParams) {
-	pc, filename, line, ok := runtime.Caller(1)
-	var logstr string
-	if ok {
-		f := runtime.FuncForPC(pc)
-		logstr = fmt.Sprintf("%s:%d:%s", filename, line, f.Name())
-	} else {
-		logstr = "???"
-	}
+	// pc, filename, line, ok := runtime.Caller(1)
+	// var logstr string
+	// if ok {
+	// 	f := runtime.FuncForPC(pc)
+	// 	logstr = fmt.Sprintf("%s:%d:%s", filename, line, f.Name())
+	// } else {
+	// 	logstr = "???"
+	// }
 	if len(b) == op.BufferSize && cap(b) == op.BufferSize {
 		recyclers.RLock()
 		var ok bool
@@ -174,16 +174,16 @@ func RecycleBuf(b []float32, op OutputParams) {
 		} 
 		select {
 		case recyclers.m[op.BufferSize] <- b:
-			logger.Println("sending buffer to recycler for",logstr)
+			// logger.Println("sending buffer to recycler for",logstr)
 			atomic.AddUint64(&RecycleStats.Recycled, 1)
 		default:
-			logger.Println("dropping buffer from",logstr)
+			// logger.Println("dropping buffer from",logstr)
 			atomic.AddUint64(&RecycleStats.Lost, 1)
-			logger.Println("recycling channel full", len(recyclers.m[op.BufferSize]))
+			// logger.Println("recycling channel full", len(recyclers.m[op.BufferSize]))
 		}
 		recyclers.RUnlock()
 	} else {
-		logger.Println("no recycler for buffer from",logstr)
+		// logger.Println("no recycler for buffer from",logstr)
 		atomic.AddUint64(&RecycleStats.Lost, 1)
 	}
 }
